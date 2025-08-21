@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Styles */
+body {
+  @apply bg-gradient-to-br from-green-50 via-yellow-50 to-orange-50 font-sans antialiased;
+  min-height: 100vh;
+}
+
+/* Custom Components */
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-farmGreen-600 to-farmGreen-700 text-white px-6 py-3 rounded-lg font-semibold 
+           hover:from-farmGreen-700 hover:to-farmGreen-800 transform hover:scale-105 
+           transition-all duration-200 shadow-lg hover:shadow-xl;
+  }
+  
+  .btn-secondary {
+    @apply bg-gradient-to-r from-farmYellow-400 to-farmYellow-500 text-farmGreen-900 px-6 py-3 rounded-lg font-semibold 
+           hover:from-farmYellow-500 hover:to-farmYellow-600 transform hover:scale-105 
+           transition-all duration-200 shadow-lg hover:shadow-xl;
+  }
+  
+  .card {
+    @apply bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 
+           hover:shadow-2xl transition-all duration-300;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-farmGreen-500 
+           focus:ring-4 focus:ring-farmGreen-100 outline-none transition-all duration-200
+           bg-white/70 backdrop-blur-sm;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-farmGreen-600 to-farmGreen-800 bg-clip-text text-transparent;
+  }
+  
+  .hero-pattern {
+    background-image: 
+      radial-gradient(circle at 25px 25px, rgba(34, 197, 94, 0.1) 2px, transparent 0),
+      radial-gradient(circle at 75px 75px, rgba(250, 204, 21, 0.1) 2px, transparent 0);
+    background-size: 100px 100px;
+  }
+  
+  .floating-element {
+    @apply animate-bounce-gentle;
+  }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-farmGreen-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-farmGreen-600;
+}
