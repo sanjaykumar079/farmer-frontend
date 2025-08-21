@@ -1,33 +1,55 @@
 // frontend/src/components/UploadForm.jsx
 import { useState } from "react";
-import axios from "axios";
 
-export default function UploadForm() {
+export default function UploadForm({ farmerId, onSubmitted }) {
+  const [text, setText] = useState("");
+  const [urgency, setUrgency] = useState("medium");
   const [file, setFile] = useState(null);
-  const [result, setResult] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    const formData = new FormData();
-    formData.append("file", file);
-
+    setBusy(true);
     try {
-      const res = await axios.post("http://127.0.0.1:8000/predict", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const fd = new FormData();
+      fd.append("farmer_id", farmerId);
+      fd.append("query_text", text);
+      fd.append("urgency", urgency);
+      if (file) fd.append("image", file);
+
+      const res = await fetch("http://127.0.0.1:8000/farmers/submit-query", {
+        method: "POST",
+        body: fd,
       });
-      setResult(res.data.prediction);
-    } catch (error) {
-      console.error(error);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed");
+
+      onSubmitted?.(data);
+      setText("");
+      setFile(null);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <div className="p-4">
-      <form onSubmit={handleSubmit}>
-        <input type="file" onChange={(e) => setFile(e.target.files[0])} />
-        <button type="submit">Upload</button>
-      </form>
-      {result && <p>Prediction: {result}</p>}
-    </div>
+    <form onSubmit={submit} className="space-y-2">
+      <textarea
+        className="border p-2 w-full"
+        placeholder="Describe your crop issue..."
+        value={text}
+        onChange={e => setText(e.target.value)}
+        required
+      />
+      <select className="border p-2" value={urgency} onChange={e=>setUrgency(e.target.value)}>
+        <option>low</option><option>medium</option><option>high</option>
+      </select>
+      <input type="file" accept="image/*" onChange={e=>setFile(e.target.files?.[0]||null)} />
+      <button disabled={busy} className="bg-green-600 text-white px-4 py-2 rounded">
+        {busy ? "Submitting..." : "Submit query"}
+      </button>
+    </form>
   );
 }

@@ -1,285 +1,136 @@
-import { useState, useEffect } from "react";
-import { useSupabase } from "../../context/SupabaseContext";
+// src/components/Dashboard/FarmerDashboard.jsx
+import { useEffect, useState } from "react";
+import axios from "axios";
+
+const API_BASE = "http://127.0.0.1:8000";
+const FARMER_ID = "0234234f-1aa4-46b2-8195-a8e99f5d2f1f"; // replace with dynamic ID if needed
 
 export default function FarmerDashboard() {
-  const { user } = useSupabase();
-  const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState("");
-  const [queryHistory, setQueryHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState("new-query");
+  const [queries, setQueries] = useState([]);
+  const [queryText, setQueryText] = useState("");
+  const [urgency, setUrgency] = useState("medium");
+  const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-
-    setIsLoading(true);
+  // Fetch farmer's queries
+  const fetchQueries = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/farmers/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: query }),
-      });
-      const data = await res.json();
-      setResponse(data.response);
-      
-      // Add to history (in a real app, this would be stored in database)
-      const newQuery = {
-        id: Date.now(),
-        question: query,
-        answer: data.response,
-        timestamp: new Date().toLocaleString(),
-        status: "completed"
-      };
-      setQueryHistory(prev => [newQuery, ...prev]);
-      setQuery("");
-    } catch (error) {
-      setResponse("Sorry, there was an error processing your query. Please try again.");
-    } finally {
-      setIsLoading(false);
+      const res = await axios.get(`${API_BASE}/farmers/my-queries/${FARMER_ID}`);
+      setQueries(res.data || []);
+    } catch (err) {
+      console.error("Error fetching queries:", err);
     }
   };
 
-  const quickActions = [
-    { icon: "🌱", title: "Crop Health", description: "Monitor your crop conditions" },
-    { icon: "💧", title: "Irrigation", description: "Water management tips" },
-    { icon: "🐛", title: "Pest Control", description: "Identify and treat pests" },
-    { icon: "🌾", title: "Harvest Guide", description: "Optimal harvesting advice" },
-  ];
+  useEffect(() => {
+    fetchQueries();
+  }, []);
+
+  // Submit new query
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!queryText) return alert("Please enter a query");
+
+    setLoading(true);
+    const formData = new FormData();
+    formData.append("farmer_id", FARMER_ID);
+    formData.append("query_text", queryText);
+    formData.append("urgency", urgency);
+    if (image) {
+      formData.append("image", image);
+    }
+
+    try {
+      await axios.post(`${API_BASE}/farmers/submit-query`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setQueryText("");
+      setImage(null);
+      setUrgency("medium");
+      fetchQueries(); // refresh list
+    } catch (err) {
+      console.error("Error submitting query:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen py-8 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 animate-fade-in">
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-farmGreen-400 to-farmGreen-600 rounded-xl flex items-center justify-center">
-              <span className="text-white text-2xl">🌱</span>
-            </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold gradient-text font-display">
-                Welcome back, Farmer!
-              </h1>
-              <p className="text-farmGreen-600 text-lg">
-                {user?.email} • Ready to solve farming challenges today?
-              </p>
-            </div>
-          </div>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Farmer Dashboard</h1>
+
+      {/* Upload Query Form */}
+      <form onSubmit={handleSubmit} className="p-4 border rounded shadow mb-6 bg-white">
+        <h2 className="text-lg font-semibold mb-2">Submit New Query</h2>
+        <textarea
+          className="w-full border p-2 rounded mb-2"
+          placeholder="Describe your crop issue..."
+          value={queryText}
+          onChange={(e) => setQueryText(e.target.value)}
+        />
+        <div className="mb-2">
+          <label className="mr-2">Urgency:</label>
+          <select
+            className="border p-1 rounded"
+            value={urgency}
+            onChange={(e) => setUrgency(e.target.value)}
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
         </div>
+        <input
+          type="file"
+          accept="image/*"
+          className="mb-2"
+          onChange={(e) => setImage(e.target.files[0])}
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+        >
+          {loading ? "Submitting..." : "Submit Query"}
+        </button>
+      </form>
 
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          {quickActions.map((action, index) => (
-            <div 
-              key={index}
-              className="card p-6 text-center hover:scale-105 transition-all duration-300 cursor-pointer animate-slide-up group"
-              style={{animationDelay: `${index * 0.1}s`}}
-            >
-              <div className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-200">
-                {action.icon}
-              </div>
-              <h3 className="font-semibold text-farmGreen-800 mb-2">{action.title}</h3>
-              <p className="text-sm text-farmGreen-600">{action.description}</p>
+      {/* List of Queries */}
+      <h2 className="text-xl font-semibold mb-2">My Queries</h2>
+      {queries.length === 0 && <p>No queries submitted yet.</p>}
+      {queries.map((query) => (
+        <div key={query.id} className="border p-4 mb-4 rounded bg-white shadow">
+          <p><strong>Query:</strong> {query.query_text}</p>
+          {query.image_url && (
+            <img src={query.image_url} alt="crop" className="w-40 mt-2 rounded" />
+          )}
+          <p className="mt-1"><strong>Urgency:</strong> {query.urgency}</p>
+          <p><strong>Status:</strong> {query.status}</p>
+          <small className="text-gray-500">
+            Submitted on {new Date(query.created_at).toLocaleString()}
+          </small>
+
+          {/* Officer Replies */}
+          {query.replies && query.replies.length > 0 && (
+            <div className="mt-3 border-t pt-2">
+              <h4 className="font-semibold">Officer Replies:</h4>
+              {query.replies.map((reply) => (
+                <div key={reply.id} className="mt-2 p-2 bg-gray-100 rounded">
+                  <p>{reply.response_text}</p>
+                  {reply.audio_path && (
+                    <audio controls className="mt-1">
+                      <source src={reply.audio_path} type="audio/mpeg" />
+                    </audio>
+                  )}
+                  <small className="text-gray-500">
+                    Replied on {new Date(reply.created_at).toLocaleString()}
+                  </small>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
-
-        {/* Tab Navigation */}
-        <div className="mb-8">
-          <div className="flex space-x-1 bg-farmGreen-100 rounded-lg p-1 max-w-md">
-            <button
-              onClick={() => setActiveTab("new-query")}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition-all duration-200 ${
-                activeTab === "new-query"
-                  ? "bg-white text-farmGreen-700 shadow-sm"
-                  : "text-farmGreen-600 hover:text-farmGreen-700"
-              }`}
-            >
-              New Query
-            </button>
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition-all duration-200 ${
-                activeTab === "history"
-                  ? "bg-white text-farmGreen-700 shadow-sm"
-                  : "text-farmGreen-600 hover:text-farmGreen-700"
-              }`}
-            >
-              History ({queryHistory.length})
-            </button>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-            {activeTab === "new-query" && (
-              <div className="card p-8 animate-fade-in">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="w-12 h-12 bg-farmGreen-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xl">❓</span>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold gradient-text font-display">
-                      Ask Your Question
-                    </h2>
-                    <p className="text-farmGreen-600">Get AI-powered solutions instantly</p>
-                  </div>
-                </div>
-                
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-farmGreen-700 mb-2">
-                      Describe your farming challenge or question
-                    </label>
-                    <textarea
-                      className="input-field resize-none"
-                      rows="6"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="e.g., My tomato leaves are turning yellow and I'm not sure why. The plants are 6 weeks old and I water them daily..."
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={isLoading || !query.trim()}
-                    className="btn-primary w-full text-lg py-4 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Processing your query...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <span>🚀 Submit Query</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                {/* Response */}
-                {response && (
-                  <div className="mt-8 p-6 bg-gradient-to-r from-farmGreen-50 to-farmYellow-50 rounded-lg border border-farmGreen-200 animate-slide-up">
-                    <div className="flex items-start space-x-3">
-                      <div className="w-10 h-10 bg-farmGreen-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-white">🤖</span>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-farmGreen-800 mb-2">AI Response:</h3>
-                        <p className="text-farmGreen-700 leading-relaxed">{response}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === "history" && (
-              <div className="card p-8 animate-fade-in">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="w-12 h-12 bg-farmGreen-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xl">📋</span>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold gradient-text font-display">
-                      Query History
-                    </h2>
-                    <p className="text-farmGreen-600">Review your past questions and answers</p>
-                  </div>
-                </div>
-
-                {queryHistory.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-6xl mb-4">📭</div>
-                    <h3 className="text-xl font-semibold text-farmGreen-800 mb-2">No queries yet</h3>
-                    <p className="text-farmGreen-600">Submit your first query to see it here</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {queryHistory.map((item) => (
-                      <div key={item.id} className="border border-farmGreen-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start mb-3">
-                          <span className="text-sm text-farmGreen-500">{item.timestamp}</span>
-                          <span className="px-2 py-1 bg-farmGreen-100 text-farmGreen-700 text-xs rounded-full">
-                            {item.status}
-                          </span>
-                        </div>
-                        <div className="mb-3">
-                          <h4 className="font-medium text-farmGreen-800 mb-1">Question:</h4>
-                          <p className="text-farmGreen-700 text-sm">{item.question}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-farmGreen-800 mb-1">Answer:</h4>
-                          <p className="text-farmGreen-700 text-sm">{item.answer}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Tips Card */}
-            <div className="card p-6 animate-slide-up">
-              <div className="flex items-center space-x-2 mb-4">
-                <span className="text-2xl">💡</span>
-                <h3 className="font-bold text-farmGreen-800 font-display">Pro Tips</h3>
-              </div>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-start space-x-2">
-                  <span className="text-farmGreen-500 mt-1">•</span>
-                  <p className="text-farmGreen-700">Be specific about your crop type and growing conditions</p>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <span className="text-farmGreen-500 mt-1">•</span>
-                  <p className="text-farmGreen-700">Include photos when describing visual problems</p>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <span className="text-farmGreen-500 mt-1">•</span>
-                  <p className="text-farmGreen-700">Mention your location and current weather conditions</p>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <span className="text-farmGreen-500 mt-1">•</span>
-                  <p className="text-farmGreen-700">Describe what you've already tried</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Support Card */}
-            <div className="card p-6 animate-slide-up" style={{animationDelay: "0.2s"}}>
-              <div className="flex items-center space-x-2 mb-4">
-                <span className="text-2xl">🆘</span>
-                <h3 className="font-bold text-farmGreen-800 font-display">Need Help?</h3>
-              </div>
-              <p className="text-farmGreen-600 text-sm mb-4">
-                Our support team is available 24/7 to assist you with any questions.
-              </p>
-              <button className="btn-secondary w-full text-sm">
-                Contact Support
-              </button>
-            </div>
-
-            {/* Weather Widget (Placeholder) */}
-            <div className="card p-6 bg-gradient-to-br from-blue-50 to-blue-100 animate-slide-up" style={{animationDelay: "0.3s"}}>
-              <div className="flex items-center space-x-2 mb-4">
-                <span className="text-2xl">🌤️</span>
-                <h3 className="font-bold text-blue-800 font-display">Weather</h3>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-700 mb-1">24°C</div>
-                <div className="text-sm text-blue-600">Partly Cloudy</div>
-                <div className="text-xs text-blue-500 mt-2">Perfect for outdoor work</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
