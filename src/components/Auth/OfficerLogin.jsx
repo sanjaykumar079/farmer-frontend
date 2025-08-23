@@ -1,120 +1,116 @@
-// src/components/Auth/OfficerLogin.jsx
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 
-const OfficerLogin = () => {
-  const [credentials, setCredentials] = useState({
-    passkey: '',
-    officer_id: '',
-    region: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
+export function OfficerProtectedRoute({ children }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [officerData, setOfficerData] = useState(null);
 
-  const handleOfficerLogin = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
+  useEffect(() => {
+    const checkAuthentication = async () => {
+      try {
+        const token = localStorage.getItem('officer_token');
+        const storedOfficerData = localStorage.getItem('officer_data');
+        
+        if (!token || !storedOfficerData) {
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
 
-    try {
-      const response = await fetch('http://127.0.0.1:8000/auth/officer-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail);
+        // Verify token with backend
+        const response = await fetch(`http://127.0.0.1:8000/auth/verify-officer-token?token=${token}`);
+        
+        if (response.ok) {
+          setIsAuthenticated(true);
+          setOfficerData(JSON.parse(storedOfficerData));
+        } else {
+          // Token is invalid, clear storage
+          localStorage.removeItem('officer_token');
+          localStorage.removeItem('officer_data');
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error('Authentication check failed:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const data = await response.json();
-      localStorage.setItem('officer_token', data.access_token);
-      localStorage.setItem('officer_data', JSON.stringify(data.officer));
-      navigate('/officer/dashboard');
+    checkAuthentication();
+  }, []);
 
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-md w-full card p-8">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-            <span className="text-white text-3xl">👮‍♂️</span>
-          </div>
-          <h1 className="text-3xl font-bold text-blue-800 mb-2">Officer Portal</h1>
-          <p className="text-blue-600">Secure access for agricultural officers</p>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="card p-8 text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-blue-800 mb-2">Verifying Access</h2>
+          <p className="text-blue-600">Please wait while we authenticate your credentials...</p>
         </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-200 rounded-lg">
-            <p className="text-red-800 text-sm">{error}</p>
-          </div>
-        )}
-
-        <form onSubmit={handleOfficerLogin} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-blue-700 mb-2">
-              Access Passkey
-            </label>
-            <input
-              type="password"
-              value={credentials.passkey}
-              onChange={(e) => setCredentials({...credentials, passkey: e.target.value})}
-              className="input-field"
-              placeholder="Enter your department passkey"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-blue-700 mb-2">
-              Officer ID
-            </label>
-            <input
-              type="text"
-              value={credentials.officer_id}
-              onChange={(e) => setCredentials({...credentials, officer_id: e.target.value})}
-              className="input-field"
-              placeholder="e.g., AGR001"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-blue-700 mb-2">
-              Region
-            </label>
-            <select
-              value={credentials.region}
-              onChange={(e) => setCredentials({...credentials, region: e.target.value})}
-              className="input-field"
-              required
-            >
-              <option value="">Select Region</option>
-              <option value="Andhra Pradesh">Andhra Pradesh</option>
-              <option value="Karnataka">Karnataka</option>
-              <option value="Tamil Nadu">Tamil Nadu</option>
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-          >
-            {isLoading ? 'Verifying...' : 'Access Officer Dashboard'}
-          </button>
-        </form>
       </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="card p-8 text-center max-w-md">
+          <div className="text-6xl mb-4">🔐</div>
+          <h2 className="text-2xl font-bold text-blue-800 mb-4">
+            Officer Access Required
+          </h2>
+          <p className="text-blue-600 mb-6">
+            You need to be authenticated as an officer to access this area.
+          </p>
+          <div className="space-y-3">
+            <a href="/login" className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 inline-block">
+              Officer Login
+            </a>
+            <a href="/" className="w-full border-2 border-blue-600 text-blue-600 py-3 px-6 rounded-lg font-semibold hover:bg-blue-600 hover:text-white transition-all duration-200 inline-block">
+              Back to Home
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Pass officer data to children components
+  return (
+    <div>
+      {/* You can add a context provider here to share officer data */}
+      {children}
     </div>
   );
-};
+}
 
-export default OfficerLogin;
+// Hook to use officer data in components
+export function useOfficerAuth() {
+  const [officerData, setOfficerData] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('officer_token');
+    const storedOfficerData = localStorage.getItem('officer_data');
+    
+    if (token && storedOfficerData) {
+      setOfficerData(JSON.parse(storedOfficerData));
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem('officer_token');
+    localStorage.removeItem('officer_data');
+    setOfficerData(null);
+    setIsAuthenticated(false);
+    window.location.href = '/login';
+  };
+
+  return {
+    officerData,
+    isAuthenticated,
+    logout
+  };
+}
